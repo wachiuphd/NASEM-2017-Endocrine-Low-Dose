@@ -706,7 +706,7 @@ dat$slab <- paste(dat$study.name,"\n  ",dat$chemical,dat$animal.group.name)
           dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
           adddose2predict(dat.now,dat.now.rma.dose2,dosescale=10)
           print(dat.now.bmd2<-addbmd2(dat.now,dat.now.rma.dose2,dosescale=10))
-		    if (dim(dat.now[1])>2) {
+		    if (dim(dat.now)[1]>2) {
         # Intercept and log10(dose) - test for trend
           print("Highest Dose Linear in log10(dose)---------------------")
           dat.now.rma.dose <- doforestdose(dat.now,ylim=c(-1.5,dim(dat.now)[1]+3),
