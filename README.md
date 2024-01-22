@@ -22,3 +22,11 @@ Two R markdown files, with corresponding knitted Word files, for effects of phth
 
 Input data files are TXT files. Results are saved as CSV files.
 
+## PBDEs folder
+
+One R markdown file, with corresponding kintted Word file, for effects on PBDEs on Morris water maze performance in experimental animals:
+
+* PBDE_Morris_latency_last_or_avail_trial_Final.Rmd
+* PBDE_Morris_latency_last_or_avail_trial_Final.docx
+
+Input data file is DAT file. Results are saved as CSV files.
