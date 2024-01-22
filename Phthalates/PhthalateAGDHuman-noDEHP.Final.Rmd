@@ -1,0 +1,620 @@
+---
+title: "PhthalateAGDHuman-noDEHP.FinalDraft"
+author: "Weihsueh Chiu"
+date: "February 10, 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, dpi=600)
+```
+
+# Meta-Analysis of Epidemiology data on AGD and Other Phthalates
+
+## Approach
+
+For each study, AGD (as) is preferred over AGD (ap).  For Bustamonte-Montes et al. (2013) and Swan (2008), the confidence interval was estimated using the reported p-value, assuming a normal distribution.  
+
+Beta coefficients are reported in units of mm / log10 change in exposure. Two factors a priori may affect comparability across studies. First, there are baseline differences in AGD (as) across different studies due to demographic many factors, such as birth weight. For instance, the mean AGD (as) in Bustamante-Montes et al. (2013) was 12.4 mm, whereas the mean AGD (as) in Bornehag et al. (2015) was 41.4 mm. Additionally, AGD (as) is shorter than AGD (ap). For instance, in Jensen et al. 2016, mean AGD (as) was 36.9 mm whereas mean AGD (ap) was 70.2 mm. Therefore the same mm change may reflect different percentage changes in AGD across studies in endpoints. To standardize effect sizes across studies, each reported beta coefficient was divided by the mean value of the reported outcome measure prior to conducting the meta-analysis.  The result is that each beta coefficient is standardized to a percent change in AGD per log10 change in exposure.
+
+Meta-analysis was done for the following phthalates (metabolites): 
+
+* BBzP (MBzP)
+* DBP (MBP)
+* DEP (MEP)
+* DiBP (MiBP)
+* DiNP (Sum DiNP or MCOP)
+
+DiDP, DMP, and DnOP only had one study each, so no meta-analysis was performed.
+
+Sensitivity analyses included leaving one study out at a time, and using exclusively AGD (ap)
+as the outcome measure.  Note that using exclusively AGD (as) as the outcome measure
+is the same as excluding the Swan (2008) study.
+
+```{r}
+dat <- read.delim("Phthalate_AGD_human_FinalDraft.txt",sep="\t",header=TRUE,as.is=TRUE)
+dat$estimate.pct <- 100 * dat$estimate / dat$outcome.mean # Divide by mean AGD
+dat$lower.CI.pct <- 100 * dat$lower.CI / dat$outcome.mean # Divide by mean AGD
+dat$upper.CI.pct <- 100 * dat$upper.CI / dat$outcome.mean # Divide by mean AGD
+dat$yi <-  dat$estimate.pct
+dat$sei <- (dat$upper.CI.pct-dat$lower.CI.pct)/(2*qnorm(0.975)) 
+```
+
+## BBzP Meta-analysis
+
+### Primary analysis
+
+```{r}
+phthalate.now<-"BBzP"
+library(knitr)
+dat.primary <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (as)")
+dat.primary <- rbind(dat.primary,subset(dat, phthalate == phthalate.now & study.name=="Swan 2008"))
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+nstudy<-dim(dat.primary)[1]
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate=paste(phthalate.now,"Primary Analysis"),
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+### Sensitivity analyses
+
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(phthalate.now," ",dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,nstudy+4),xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-24,nstudy+1.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-24,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep="")
+)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+```
+
+
+Next sensitivity analysis is just using AGD (ap).
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (ap)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-12,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD (ap)"),
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.table)<-NULL
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+```
+
+## DBP Meta-analysis
+
+### Primary analysis
+
+```{r}
+phthalate.now<-"DBP"
+
+dat.primary <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (as)")
+dat.primary <- rbind(dat.primary,subset(dat, phthalate == phthalate.now & study.name=="Swan 2008"))
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+nstudy<-dim(dat.primary)[1]
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate=paste(phthalate.now,"Primary Analysis"),
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+### Sensitivity analyses
+
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(phthalate.now," ",dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,nstudy+4),xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-28,nstudy+1.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-28,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep="")
+)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+```
+
+
+Next sensitivity analysis is just using AGD (ap).
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (ap)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-16,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD (ap)"),
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.table)<-NULL
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+```
+
+
+## DEP Meta-analysis
+
+### Primary analysis
+
+```{r}
+phthalate.now<-"DEP"
+
+dat.primary <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (as)")
+dat.primary <- rbind(dat.primary,subset(dat, phthalate == phthalate.now & study.name=="Swan 2008"))
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+nstudy<-dim(dat.primary)[1]
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate=paste(phthalate.now,"Primary Analysis"),
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+### Sensitivity analyses
+
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(phthalate.now," ",dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,nstudy+4),xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-17,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-23,nstudy+1.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-23,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep="")
+)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+```
+
+
+Next sensitivity analysis is just using AGD (ap).
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (ap)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-12,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD (ap)"),
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.table)<-NULL
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+```
+
+## DiBP Meta-analysis
+
+### Primary analysis
+
+```{r}
+phthalate.now<-"DiBP"
+
+dat.primary <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (as)")
+dat.primary <- rbind(dat.primary,subset(dat, phthalate == phthalate.now & study.name=="Swan 2008"))
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+nstudy<-dim(dat.primary)[1]
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate=paste(phthalate.now,"Primary Analysis"),
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+### Sensitivity analyses
+
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(phthalate.now," ",dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,nstudy+4),xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-26,nstudy+1.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-26,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep="")
+)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+```
+
+
+Next sensitivity analysis is just using AGD (ap).
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (ap)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-16,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD (ap)"),
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.table)<-NULL
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+```
+
+## DiNP Meta-analysis
+
+### Primary analysis
+
+```{r}
+phthalate.now<-"DiNP"
+
+dat.primary <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (as)" &
+                        (exposure.name == "sum DiNP metabolites" |
+                           exposure.name == "MCOP (DINP metabolite)"))
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+nstudy<-dim(dat.primary)[1]
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate=paste(phthalate.now,"Primary Analysis"),
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+### Sensitivity analyses
+
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(phthalate.now," ",dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,nstudy+4),xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-18,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-24,nstudy+1.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-24,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep="")
+)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+```
+
+
+Next sensitivity analysis is just using AGD (ap).
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,phthalate == phthalate.now & outcome.name == "AGD (ap)" &
+                        (exposure.name == "sum DiNP metabolites" |
+                           exposure.name == "MCOP (DINP metabolite)"))
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab=paste("AGD % change per log10 change",phthalate.now),cex=0.8)
+text(-8,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD (ap)"),
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.table)<-NULL
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+```
+
+
+## Summary and Conclusions
+
+###BBzP
+
+In the primary analysis, four studies, with beta coefficients standardized to a percent change per log10 change in BBzP exposure, were analyzed using a random effects model. A summery estimate of -1.43 [95% CI: -3.47, 0.61] (p = 0.17) was found. There was no significant heterogeneity, with an estimated I2 value of 0% (Q statistic was not statistically significant).  In the sensitivity analyses, effect sizes ranged from -0.15 to -2.21, none of which were statistically significant.  In sum, although a small effect was observed, the precision of the estimate was not sufficient to rule out chance.  Thus, the available studies do not support BBzP exposure being associated with decreased AGD.
+
+###DBP
+
+In the primary analysis, four studies, with beta coefficients standardized to a percent change per log10 change in DBP exposure, were analyzed using a random effects model. A summery estimate of -3.13 [95% CI: -5.63, -0.64] (p = 0.014) was found. There was no significant heterogeneity, with an estimated I2 value of 0% (Q statistic was not statistically significant).  In the sensitivity analyses, effect sizes ranged from -1.85 to -4.02, and remained statistically significant in 3 of the 5 analyses.  Specifically, dropping either the Swan (2008) or Swan et al. (2015) studies resulted in summary estimates that were no longer statistically significant.  There was no observed heterogeneity in any sensitivity analysis results (I2=0) 
+
+Overall, there is consistent evidence of a small decrease in AGD being associated with increasing DBP exposure, of magnitude around 3% for each log10 increase in DBP exposure.  However, some uncertainty remains because the statistical significance of this result depends on the Swan (2008) or Swan et al. (2015) studies.  On the other hand, there was no observed heterogeneity, so it is likely that this sensitivity is related to the decreased statistical power when dropping studies.
+
+For the overall confidence rating, the meta-analysis primarily informs the following considerations:
+
+* Factors potentially decreasing confidence
+
+- Unexplained inconsistency. There is no evidence of unexplained inconsistency. The meta-analysis I2 statistic was 0%.Therefore, the meta-analysis would support the conclusion that unexplained inconsistency is not a serious concern.
+
+–	Imprecision. The summary estimate has a 95% confidence interval of [-5.63, -0.64], which is less than the factor of 100 that would lead to a potential concern, per OHAT guidelines. Confidence intervals for the sensitivity analyses were similar. Therefore, the meta-analysis would support the conclusion that imprecision is not a serious concern.
+
+* Factors potentially increasing confidence
+
+–	Large Magnitude of Association or Effect. The effect size observed is relatively modest -- about a 3% change for every 10-fold increase in DBP exposure. Therefore the meta-analysis would not support a conclusion that there is a large magnitude of association or effect
+
+–	Dose Response. The effect estimates are estimates of slopes, so provide direct evidence of dose-response. Therefore, the meta-analysis supports a conclusion that there is a monotonic dose-response relationship between exposure and effect.
+
+–	Cross-Population Consistency.  The meta-analysis shows consistency across four studies with different study populations (two multi-center US cohorts, and cohorts from Denmark, and Sweden, albeit all fully developed Western countries) at different times (ranging roughly from 2000 to 2012).  These populations had different average AGD measurements (e.g., AGD (as) ranging from 24.7 mm to 41.4 mm) as well as very different DEHP exposure levels (e.g., median [or geometric mean] for the sum of DEHP metabolites ranging from <1 to > 100 nmol/l across studies).  After standardizing effect estimates to % change in AGD per log10 change in exposure, the estimates across studies were remarkably consistent, with no evidence for heterogeneity.  Moreover, this consistency was robust to multiple sensitivity analyses.  Therefore, the meta-analysis supports a conclusion that there is consistency across populations.
+
+[NOTE – this is not as robust as DEHP – so might need to tweak this to communicate that better]
+
+### DEP
+
+In the primary analysis, four studies, with beta coefficients standardized to a percent change per log10 change in DEP exposure, were analyzed using a random effects model. A summery estimate of -1.94 [95% CI: -3.88, 0.001] (p = 0.0501) was found. There was some heterogeneity, with an estimated I2 value of 29%, though the Q statistic was not statistically significant.  In the sensitivity analyses, effect sizes ranged from -1.15 to -2.54, only one of the five of which was statistically significant.  Additionally, heterogeneity with I2 > 50% was observed in three of the five sensitivity analyses (though none were statistically significant).  Thus, while the primary analysis suggests DEP exposure being associated with decreased AGD, the effect size is small (e.g., as compared to DEHP or DBP), the statistical significance of the result was not robust, and some heterogeneity was observed.
+
+### DiBP
+
+In the primary analysis, three studies, with beta coefficients standardized to a percent change per log10 change in DiBP exposure, were analyzed using a random effects model. A summery estimate of -2.23 [95% CI: -5.15, 0.70] (p = 0.13) was found. There was no significant heterogeneity, with an estimated I2 value of 0% (Q statistic was not statistically significant).  In the sensitivity analyses, effect sizes ranged from -1.18 to -3.07, none of which were statistically significant.  In sum, although a small effect was observed, the precision of the estimate was not sufficient to rule out chance.  Thus, the available studies do not support DiBP exposure being associated with decreased AGD.
+
+[Note about only 3 studies – lack of power?]
+
+### DiNP
+
+In the primary analysis, three studies, with beta coefficients standardized to a percent change per log10 change in DiNP exposure, were analyzed using a random effects model. A summery estimate of -0.96 [95% CI: -4.17, 2.25] (p = 0.56) was found. Heterogeneity was observed, with an estimated I2 value of 58%, though the Q statistic was not statistically significant.  In the sensitivity analyses, effect sizes ranged from -2.42 to -0.52, none of which were statistically significant.  Thus, the available studies do not support DiNP exposure being associated with decreased AGD.
+
+[Note about only 3 studies – lack of power?]

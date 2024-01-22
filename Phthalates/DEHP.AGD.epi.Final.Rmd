@@ -1,0 +1,446 @@
+---
+title: "DEHP.AGD.epa.FinalDraft.Rmd"
+author: "Weihsueh Chiu"
+date: "February 10, 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, dpi=600)
+```
+
+# Meta-Analysis of Epidemiology data on AGD and DEHP
+
+## Data used in primary analysis
+For each study:
+
+* Outcome: AGD (as) is preferred over AGD (ap)
+* Time of exposure measurement: 1st trimester is preferred over 2nd trimester, which is preferred over 3rd trimester, which is preferred over not specific
+* Exposure metric: Sum of DEHP metabolites is preferred over MEHP, which is preferred over any of the other DEHP metabolites
+
+For Bustamonte-Montes et al. (2013) and Swan (2008), the confidence interval was estimated using the reported p-value, assuming a normal distribution.  
+
+Beta coefficients are reported in units of mm / log10 change in exposure. Two factors a priori may affect comparability across studies. First, there are baseline differences in AGD (as) across different studies due to demographic many factors, such as birth weight. For instance, the mean AGD (as) in Bustamante-Montes et al. (2013) was 12.4 mm, whereas the mean AGD (as) in Bornehag et al. (2015) was 41.4 mm. Additionally, AGD (as) is shorter than AGD (ap). For instance, in Jensen et al. 2016, mean AGD (as) was 36.9 mm whereas mean AGD (ap) was 70.2 mm. Therefore the same mm change may reflect different percentage changes in AGD across studies in endpoints. To standardize effect sizes across studies, each reported beta coefficient was divided by the mean value of the reported outcome measure prior to conducting the meta-analysis.  The result is that each beta coefficient is standardized to a percent change in AGD per log10 change in exposure.
+
+```{r kable}
+library(knitr)
+dat <- read.delim("DEHP.AGD.epi.FinalDraft.txt",sep="\t",header=TRUE,as.is=TRUE)
+dat$estimate.pct <- 100 * dat$estimate / dat$outcome.mean # Divide by mean AGD
+dat$lower.CI.pct <- 100 * dat$lower.CI / dat$outcome.mean # Divide by mean AGD
+dat$upper.CI.pct <- 100 * dat$upper.CI / dat$outcome.mean # Divide by mean AGD
+dat$yi <-  dat$estimate.pct
+dat$sei <- (dat$upper.CI.pct-dat$lower.CI.pct)/(2*qnorm(0.975)) 
+dat.primary <- subset(dat,Primary.Estimate)
+kable(dat.primary[,c("study.name",
+                     "outcome.name","outcome.mean",
+                     "exposure.name","exposure.metric","estimate.pct","lower.CI.pct","upper.CI.pct")],
+      row.names=FALSE,dig=2)
+```
+
+## Primary analysis results
+
+```{r, fig.width=7, fig.height = 6}
+library(metafor)
+dat.primary.rma <- rma(yi,sei=sei,slab=study.name,data=dat.primary)
+dat.primary.rma
+par(font=2)
+forest(dat.primary.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-25,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.table<-data.frame(alternate="None (Primary Analysis)",
+                       estimate=dat.primary.rma$b,
+                       se=dat.primary.rma$se,
+                       zval=dat.primary.rma$zval,
+                       pval=dat.primary.rma$pval,
+                       ci.lb=dat.primary.rma$ci.lb,
+                       ci.ub=dat.primary.rma$ci.ub,
+                       Q=dat.primary.rma$QE,
+                       Qp=dat.primary.rma$QEp,
+                       I2=dat.primary.rma$I2)
+rownames(meta.table)<-NULL
+```
+
+## Leave one out analysis
+The first sensitivity analysis is leaving each study out, one at a time.
+
+```{r, fig.width=7, fig.height = 6}
+dat.primary.rma.l1o<-leave1out(dat.primary.rma)
+dat.primary.rma.l1o
+meta.table<-rbind(meta.table,
+                  data.frame(alternate=paste(dat.primary.rma.l1o$slab,".0",sep=""),
+                            estimate=dat.primary.rma.l1o$estimate,
+                            se=dat.primary.rma.l1o$se,
+                            zval=dat.primary.rma.l1o$zval,
+                            pval=dat.primary.rma.l1o$pval,
+                            ci.lb=dat.primary.rma.l1o$ci.lb,
+                            ci.ub=dat.primary.rma.l1o$ci.ub,
+                            Q=dat.primary.rma.l1o$Q,
+                            Qp=dat.primary.rma.l1o$Qp,
+                            I2=dat.primary.rma.l1o$I2))
+rownames(meta.table)<-NULL
+par(font=2)
+forest(dat.primary.rma,ylim=c(-8.5,9),xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-25,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+par(font=4)
+text(-34,7.5,pos=4,"Primary Analysis:",cex=0.8)
+abline(h=-2)
+text(-34,-2.5,pos=4,"Leave One Out Analyses:",cex=0.8)
+abline(h=-3)
+par(font=2)
+addpoly(dat.primary.rma.l1o$estimate,ci.lb=dat.primary.rma.l1o$ci.lb,ci.ub=dat.primary.rma.l1o$ci.ub,
+        row=-3.5,cex=0.8,
+        mlab=paste(dat.primary.rma.l1o$slab," (I2=",round(dat.primary.rma.l1o$I2,1),"%)",sep=""))
+mtext("Author[s] and year",side=3,line=-1,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-1,adj=1,cex=0.8)
+```
+
+
+## Alternative estimates for each study
+The next sensitivity analysis is replacing each study's preferred estimate with one of the alternatives:
+
+* AGD (ap) instead of AGD (as)
+* Later trimester maternal urine sample (including replacing Swan et al. 2015 with estimates 
+from Martino-Andrade et al. 2016)
+* Alternative DEHP exposure metric 
+
+There are a total of 42 alternatives estimates.
+
+### Alternative estimates
+```{r}
+nstudy <- dim(dat.primary)[1]
+for (i in 1:nstudy) {
+  dat.second <- dat.primary
+  studynow <- dat.primary$study.name[i]
+  dat.study <- subset(dat,Secondary.Estimate == TRUE & Secondary.Estimate.Study==studynow)
+  nalt <- dim(dat.study)[1]
+  for (j in 1:nalt) {
+    dat.second[i,]<-dat.study[j,] # replace study estimate with alternative estimate
+    dat.second.rma <- rma(yi,sei=sei,slab=study.name,data=dat.second)
+    meta.table<-rbind(meta.table,
+                      data.frame(alternate=paste(dat.study$study.name[j],".",j,sep=""),
+                       estimate=dat.second.rma$b,
+                       se=dat.second.rma$se,
+                       zval=dat.second.rma$zval,
+                       pval=dat.second.rma$pval,
+                       ci.lb=dat.second.rma$ci.lb,
+                       ci.ub=dat.second.rma$ci.ub,
+                       Q=dat.second.rma$QE,
+                       Qp=dat.second.rma$QEp,
+                       I2=dat.second.rma$I2)
+                      )
+  }
+}
+rownames(meta.table)<-NULL
+indx<-(nstudy+2):(dim(meta.table)[1])
+alt.estimates.table<-cbind(meta.table[indx,"alternate"],
+                           subset(dat,Primary.Estimate==FALSE)[,c("outcome.name","exposure.name",
+                                                               "exposure.metric","estimate","lower.CI","upper.CI")])
+names(alt.estimates.table)[1]<-"study.name.alt.estimate"
+kable(alt.estimates.table,digit=2,row.names=FALSE)
+```
+
+### Forest plot comparing primary meta-analysis results with those using alternative estimates
+```{r, fig.width = 7, fig.height = 10}
+par(font=2)
+forest(dat.primary.rma,ylim=c(-1.5-length(indx),9),xlab="AGD % change per log10 change DEHP",cex=0.5)
+text(-25,-1,pos=4,paste("(I2=",round(dat.primary.rma$I2,1),"%)",sep=""),cex=0.55)
+abline(h=8)
+par(font=4)
+text(-34,7.5,pos=4,"Primary Analysis:",cex=0.55)
+abline(h=-2)
+text(-34,-2.5,pos=4,"Analyses with Alternative Estimates:",cex=0.55)
+abline(h=-3)
+par(font=2)
+addpoly(meta.table$estimate[indx],ci.lb=meta.table$ci.lb[indx],ci.ub=meta.table$ci.ub[indx],
+        row=-3.5,
+        mlab=paste(meta.table$alternate[indx]," (I2=",round(meta.table$I2[indx],1),"%)",sep="")
+        )
+mtext("Authors[s] and year",side=3,line=-1,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-1,adj=1,cex=0.8)
+```
+
+## Additional alternative analyses
+
+### Only sum DEHP
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,Primary.Estimate & exposure.name == "sum DEHP metabolites")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-data.frame(alternate="Only sumDEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (as)
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,Primary.Estimate & outcome.name == "AGD (as)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-1,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-1,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (as)",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only MEHP 
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (as)" & exposure.name == "MEHP (DEHP metabolite)")
+dat.tmp <- rbind(dat.tmp,subset(dat, study.name == "Swan 2008" & exposure.name == "MEHP (DEHP metabolite)"))
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only MEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (ap)
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (ap)" & exposure.name == "sum DEHP metabolites")
+dat.tmp <- rbind(dat.tmp,subset(dat, outcome.name == "AGD (ap)" & exposure.name == "MEHP (DEHP metabolite)" & (
+  study.name == "Swan 2008" | study.name == "Bustamante-Montes et al. 2013")))
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (ap)",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (as) and sum DEHP
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (as)" & exposure.name == "sum DEHP metabolites")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (as) and sum DEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (ap) and sum DEHP
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (ap)" & exposure.name == "sum DEHP metabolites")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-10,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (ap) and sum DEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (as) and MEHP
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (as)" & exposure.name == "MEHP (DEHP metabolite)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (as) and MEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+```
+
+### Only AGD (ap) and MEHP
+
+```{r, fig.width=7, fig.height = 6}
+dat.tmp <- subset(dat,outcome.name == "AGD (ap)" & exposure.name == "MEHP (DEHP metabolite)")
+dat.tmp.rma <- rma(yi,sei=sei,slab=study.name,data=dat.tmp)
+dat.tmp.rma
+nstudy<-dim(dat.tmp)[1]
+par(font=2)
+forest(dat.tmp.rma,xlab="AGD % change per log10 change DEHP",cex=0.8)
+text(-20,-1,pos=4,paste("(I2=",round(dat.tmp.rma$I2,1),"%)",sep=""),cex=0.8)
+abline(h=8)
+mtext("Authors[s] and year",side=3,line=-2,adj=0,cex=0.8)
+mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
+meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (ap) and MEHP",
+                       estimate=dat.tmp.rma$b,
+                       se=dat.tmp.rma$se,
+                       zval=dat.tmp.rma$zval,
+                       pval=dat.tmp.rma$pval,
+                       ci.lb=dat.tmp.rma$ci.lb,
+                       ci.ub=dat.tmp.rma$ci.ub,
+                       Q=dat.tmp.rma$QE,
+                       Qp=dat.tmp.rma$QEp,
+                       I2=dat.tmp.rma$I2)
+)
+rownames(meta.alt.table)<-NULL
+write.csv(rbind(meta.table,meta.alt.table),file="DEHP.AGD.epi.results.FinalDraft.csv")
+
+```
+
+
+## Summary and Conclusions
+
+In the primary analysis, five studies, with beta coefficients standardized to a percent change per log10 change in DEHP exposure, were analyzed using a random effects model.  A statistically significant summery estimate of -4.07 [95% CI: -6.49, -1.66] (p = 0.0009) was found for the change in AGD per log10 increase in DEHP exposure.  There was no significant heterogeneity, with an estimated I^2^ value of 0% (Q statistic was not statistically significant).  Two studies (Swan 2008 and Swan et al. 2015) accounted for  over 60% of the weight in the summary estimate.  
+
+Leaving one study out at a time, the summary estimates ranged from -4.35 to -3.59.  The summary estimate remained statistically significant in all cases, with p values ranging from 0.0007 to 0.19.  There was no observed heterogeneity in any of these cases (I^2^ value of 0%).
+
+Additional sensitivity analyses were performed using alternative effect estimates
+for each study.  The summary estimates ranged from -4.78 to -1.52.  In 11 of the
+42 alternative analyses, the summary estimates were no longer statistically
+significant, with p values ranging from 0.0503 to 0.41.  All of these non-statistically
+significant alternative analyses involved substituting Swan et al. (2015) results
+with results from Martino-Andrade et al. 2016 using Trimester 2 or Trimester 3 
+DEHP measurements.  These each of which also led to greater heterogeneity (I^2^ up to 54%,
+though none were statistically significant).
+
+Finally, eight additional sensitivity analyses were conducted restricting the
+included results to more homogeneous exposure and outcome measures (e.g., only
+using the sum DEHP estimates).  The resulting summary estimates ranged from -4.2 to -2.0,
+all of which were statistically significantly different from 0.  Additionally, 
+there was no observed heterogeneity in any of these cases.
+
+Overall, there is consistent evidence of a small decrease in AGD being associated with
+increasing DEHP exposure, of magnitude around 4% for each log10 increase in DEHP exposure.  
+There was no evidence of heterogeneity in the primary analysis, and this result was 
+robust to removing individual studies.  However, the majority of the weight in the summary
+estimate is from two studies from the same research group.  The result was also robust
+multiple additional sensitivity analyses involved alternative effect size estimates.
+In about 80% of these 50 sensitivity analyses, the summary estimate remained statistically
+significant.   Greater weight is given to the primary analysis 
+because it reflects the preferred measures of outcome and exposure.  Moreover, all sensitivity
+analyses involving stricter criteria for homogeneous exposure and outcome measures 
+had summary measures that were statistically significant with no observed heterogeneity.
+
+For the overall confidence rating, the meta-analysis primarily informs the following
+considerations:
+
+* Factors potentially decreasing confidence
+
+    + Unexplained inconsistency.  There is no evidence of unexplained inconsistency. 
+The meta-analysis I^2^ statistic was 0%.  In some cases, larger values
+(up to 54%) were estimated in sensitivity analyses, but these are given less 
+weight because these involved the use of less preferred outcome or exposure estimates, which are 
+expected to introduce more heterogeneity.  Therefore, the meta-analysis would
+support the conclusion that unexplained inconsistency is not a serious concern.
+    + Imprecision.  The summary estimate has a 95% confidence interval of [-6.49, -1.66], which is
+less than the factor of 100 that would lead to a potential concern, per OHAT guidelines.  
+Confidence intervals for the sensitivity analyses were similar.  
+Therefore, the meta-analysis would support the conclusion that 
+imprecision is not a serious concern.
+
+* Factors potentially increasing confidence
+
+    + Large Magnitude of Association or Effect.  The effect size observed is 
+relatively modest -- about a 4% change for every 10-fold increase in DEHP exposure.   
+Therefore the meta-analysis would not support a conclusion
+that there is a large magnitude of association or effect
+    + Dose Response.  The effect estimates are estimates of slopes, so provide
+direct evidence of dose-response.  Therefore, the meta-analysis supports
+a conclusion that there is a monotonic dose-response relationship between
+exposure and effect.
+

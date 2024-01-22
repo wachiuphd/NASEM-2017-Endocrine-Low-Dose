@@ -1,0 +1,4 @@
+"","phthalate","species","effect","b.lab","bmr","bmd","ci.lb","ci.ub"
+"1","DEHP","Rat","AGD log(Ratio of mean)x100","LE Linear in dose100",-5.1,267.751409187076,167.974702544381,659.488314633672
+"2","DEHP","Rat","AGD log(Ratio of mean)x100","SD Linear-Quadratic in dose100",-5.1,293.679854889074,165.723725825094,NA
+"3","DEHP","Rat","AGD log(Ratio of mean)x100","W Linear-Quadratic in dose100",-5.1,154.088898814402,99.2377234004032,281.527010458339

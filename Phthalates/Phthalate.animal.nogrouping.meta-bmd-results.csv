@@ -1,0 +1,56 @@
+"","phthalate","species","effect","b.lab","bmr","bmd","ci.lb","ci.ub"
+"1","DEHP","Rat","AGD log(Ratio of mean)","Linear in dose100",-5.12932943875506,331.619124877763,276.063106146222,415.160719136259
+"2","DEHP","Rat","AGD log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,272.641938474699,179.231475756842,419.964922926585
+"3","DEHP","Rat","AGD log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,273.72113050031,209.415202807274,395.020872508754
+"4","DEHP","Rat","AGD log(Ratio of mean)","Highest Doses-LinearQuadratic in dose100",-5.12932943875506,325.26314195798,160.090579231311,543.25693430725
+"5","DEHP","Mouse","AGD log(Ratio of mean)","Linear in dose100",-5.12932943875506,252.870122763265,146.300625697363,NA
+"6","DEHP","Mouse","AGD log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,110.187434716266,86.3049022880492,148.465602822761
+"7","DEHP","Mouse","AGD log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,NA,193.857766361612,NA
+"8","DBP","Rat","AGD log(Ratio of mean)","Linear in dose100",-5.12932943875506,211.916295546706,183.376731819647,250.977121499519
+"9","DBP","Rat","AGD log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,152.507719260866,115.027745909739,215.662588987912
+"10","DBP","Rat","AGD log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,205.893728140724,169.178646392215,262.963023457991
+"11","DBP","Rat","AGD log(Ratio of mean)","Highest Doses-LinearQuadratic in dose100",-5.12932943875506,106.715892227933,79.361437623458,158.79570788421
+"12","BzBP","Rat","AGD log(Ratio of mean)","Linear in dose100",-5.12932943875506,248.336713174071,204.842512916258,315.281658429631
+"13","BzBP","Rat","AGD log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,252.396526319498,164.384346899507,376.725493891816
+"14","BzBP","Rat","AGD log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,253.757153591782,197.898711690845,353.546311729245
+"15","BzBP","Rat","AGD log(Ratio of mean)","Highest Doses-LinearQuadratic in dose100",-5.12932943875506,351.152165906952,NA,524.083937850198
+"16","DINP","Rat","AGD log(Ratio of mean)","Linear in dose100",-5.12932943875506,NA,684.07656408131,NA
+"17","DINP","Rat","AGD log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,NA,706.044055077664,NA
+"18","DINP","Rat","AGD log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,NA,590.005358554851,NA
+"19","DINP","Rat","AGD log(Ratio of mean)","Highest Doses-LinearQuadratic in dose100",-5.12932943875506,NA,NA,NA
+"20","DBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,17.4268370249115,14.3164911992926,22.2637628228752
+"21","DBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,173.552481193326,142.576705872007,221.722921694069
+"22","DBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,11.501178795125,7.77829337511731,21.7184986804856
+"23","DBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,125.013942044457,84.8095847117389,204.575057470894
+"24","DBP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,17.2280860725612,13.6781126735373,23.2666316884056
+"25","DBP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-51.0825623765991,171.57306104511,136.219184383425,231.710465555908
+"26","DBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,10.3614568862579,5.9528335333022,36.4142076867789
+"27","DBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,112.421310468045,63.9749282839851,253.310937876928
+"28","DEHP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,22.295633851693,19.5465364714259,25.9445983133223
+"29","DEHP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,222.039885083119,194.661413682595,258.380322723957
+"30","DEHP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,15.0873788956572,10.9911231349971,23.89559163579
+"31","DEHP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,160.770260391708,117.979091198418,236.056041067514
+"32","DEHP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,24.3945123595812,19.5319936095271,32.4807978095942
+"33","DEHP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-51.0825623765991,242.943175082837,194.517065026811,323.472269297677
+"34","DEHP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,NA,NA,531.062156103792
+"35","DEHP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,NA,NA,652.456509640357
+"36","DPP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,10.2105938624124,8.52494966326732,12.7271725147085
+"37","DPP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,101.686421665417,84.8993643062834,126.748604830409
+"38","DPP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,5.48597485173409,4.77491274130858,6.44463454018637
+"39","DPP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,57.4905817279331,49.8898720362221,67.6821954534018
+"40","DPP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-5.12932943875506,11.1781736458761,8.36094167845691,16.8587211648365
+"41","DPP","Rat","Fetal testes T log(Ratio of mean)","Highest Doses-Linear in dose100",-51.0825623765991,111.32271309605,83.2659828499374,167.894912542154
+"42","DPP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,5.88543288314956,4.62181119705239,8.09304454849326
+"43","DPP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,61.7667693150157,48.2455762544407,84.9940933058236
+"44","DIBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,27.2310167595519,22.5674685970986,34.3240391511729
+"45","DIBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,271.191798526154,224.747680041593,341.830683831115
+"46","DIBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,42.6301055468752,23.2598346903505,126.978493044637
+"47","DIBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,340.555310394999,239.035696907355,453.35120803181
+"48","BzBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,23.1900856470557,19.2833995411555,29.0819543601256
+"49","BzBP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,230.94829025841,192.042270544207,289.623473993322
+"50","BzBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,22.7885259793971,13.0475009150879,73.7319216817561
+"51","BzBP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,227.987655513828,139.541390274757,388.679568512725
+"52","DINP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-5.12932943875506,67.8347632460478,58.9994682611439,79.7822497537447
+"53","DINP","Rat","Fetal testes T log(Ratio of mean)","Linear in dose100",-51.0825623765991,675.561132245326,587.570384167129,794.545051897328
+"54","DINP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-5.12932943875506,75.4817476451786,49.3597513820217,144.926141254583
+"55","DINP","Rat","Fetal testes T log(Ratio of mean)","LinearQuadratic in dose100",-51.0825623765991,700.630064256091,552.353921106859,846.546984761951

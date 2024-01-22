@@ -1,0 +1,7 @@
+"","phthalate","species","effect","b.lab","bmr","bmd","ci.lb","ci.ub"
+"1","DEHP","Rat","Fetal T log(Ratio of mean)x100","LE Linear in dose100",-5.1,34.0392192216996,19.6025359562309,129.16972605676
+"2","DEHP","Rat","Fetal T log(Ratio of mean)x100","SD Linear-Quadratic in dose100",-5.1,13.4736909011395,9.43292225896792,23.3842699594628
+"3","DEHP","Rat","Fetal T log(Ratio of mean)x100","W Linear in dose100",-5.1,22.8534448321012,21.2948569764636,24.6583526171229
+"4","DEHP","Rat","Fetal T log(Ratio of mean)x100","LE Linear in dose100",-51,340.392573709969,196.024453100064,NA
+"5","DEHP","Rat","Fetal T log(Ratio of mean)x100","SD Linear-Quadratic in dose100",-51,144.32801060403,101.118590546278,231.743391986015
+"6","DEHP","Rat","Fetal T log(Ratio of mean)x100","W Linear in dose100",-51,228.535667521682,212.94755528237,246.583805929046
