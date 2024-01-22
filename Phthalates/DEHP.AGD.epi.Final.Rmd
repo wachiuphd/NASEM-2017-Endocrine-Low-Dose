@@ -1,5 +1,5 @@
 ---
-title: "DEHP.AGD.epa.FinalDraft.Rmd"
+title: "DEHP.AGD.epa.Final.Rmd"
 author: "Weihsueh Chiu"
 date: "February 10, 2017"
 output:
@@ -26,7 +26,7 @@ Beta coefficients are reported in units of mm / log10 change in exposure. Two fa
 
 ```{r kable}
 library(knitr)
-dat <- read.delim("DEHP.AGD.epi.FinalDraft.txt",sep="\t",header=TRUE,as.is=TRUE)
+dat <- read.delim("DEHP.AGD.epi.Final.txt",sep="\t",header=TRUE,as.is=TRUE)
 dat$estimate.pct <- 100 * dat$estimate / dat$outcome.mean # Divide by mean AGD
 dat$lower.CI.pct <- 100 * dat$lower.CI / dat$outcome.mean # Divide by mean AGD
 dat$upper.CI.pct <- 100 * dat$upper.CI / dat$outcome.mean # Divide by mean AGD
