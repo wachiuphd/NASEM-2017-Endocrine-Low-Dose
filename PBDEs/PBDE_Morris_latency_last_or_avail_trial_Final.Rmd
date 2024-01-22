@@ -403,7 +403,7 @@ dat.order$col[dat.order$vi==0]<-"royalblue3"
 dat.order$slab <- paste(dat.order$study.name,"\n  ",dat.order$chemical,dat.order$animal.group.name)
 dosepos<-max(dat.order$yi+3*sqrt(dat.order$vi),na.rm=TRUE)
 
-pdf("Fig5.pdf",height=8,width=6.5)
+# pdf("Fig5.pdf",height=8,width=6.5)
 forest(x=dat.order$yi,vi=dat.order$vi,slab=dat.order$slab,col=dat.order$col,
        xlab="Latency last trial log(Ratio of mean)x100",main="PBDE All Studies and Doses",
        ilab=cbind(dat.order$dose), ilab.xpos=dosepos,
@@ -412,7 +412,7 @@ abline(h=(1:(length(dat.order$brom)-1))[rev(diff(dat.order$brom))!=0]+0.55,lty=2
 mtext("Study, congener, and animal group",side=3,line=-1,adj=0,cex=0.7)
 mtext("Estimate [95% CI]",side=3,line=-1,adj=1,cex=0.7)
 mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,cex=0.7)
-dev.off()
+# dev.off()
 ```
 
 
@@ -432,7 +432,7 @@ dat$slab <- paste(dat$study.name,"\n  ",dat$chemical,dat$animal.group.name)
             # Intercept only
         print("Overall Effect---------------------")
         
-pdf("Fig6.pdf",height=8,width=6.5)
+# pdf("Fig6.pdf",height=8,width=6.5)
         dat.now.rma <- doforest(dat.now,effectlab=effectlab,
                                 main=paste("PBDE All Doses"),cex=0.7)
         dat.order<-dat.now[order(dat.now$brom,
@@ -440,7 +440,7 @@ pdf("Fig6.pdf",height=8,width=6.5)
         dat.order.nona<-dat.order[!is.na(dat.order$vi),]
         abline(h=(1:(length(dat.order.nona$brom)-1))[rev(diff(dat.order.nona$brom))!=0]+0.5,lty=2)
 		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma,b.lab="Overall",bindx=1))
-        dev.off()
+        # dev.off()
         #        print(dat.now.rma.l1o<-leave1out(dat.now.rma))
         # Leave one out
         print("Leave one out---------------------")
