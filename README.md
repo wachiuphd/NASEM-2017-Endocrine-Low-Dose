@@ -20,3 +20,5 @@ Two R markdown files, with corresponding knitted Word files, for effects of phth
 * DEHP.AGD.epi.Final.docx
 * PhthalateAGDHuman-noDEHP.Final.docx
 
+Input data files are TXT files. Results are saved as CSV files.
+
