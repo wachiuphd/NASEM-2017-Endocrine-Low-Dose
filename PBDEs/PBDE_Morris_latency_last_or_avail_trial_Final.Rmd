@@ -1,0 +1,740 @@
+---
+title: "Morris_meta"
+author: "Weihsueh Chiu"
+date: "February 9, 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE, dpi=300}
+library(Hmisc)
+library(knitr)
+library(pander)
+library(metafor)
+
+##### functions_for_effect_sizes
+
+get_contin_es <- function(dat.contin, measure = "ROM", pct.scaling=TRUE, md.scaling=FALSE,
+                          include.controls=FALSE) {
+  endpoint.id.vec <- unique(dat.contin$endpoint.id)
+  dat.contin.trans<-data.frame()
+  for (endpoint.id.now in endpoint.id.vec) {
+    dat.tmp <- subset(dat.contin,endpoint.id == endpoint.id.now) # & !Exclude)
+    if (dim(dat.tmp)[1]>1) {
+      dat.tmp$yi<-NA
+      dat.tmp$vi<-NA
+      control.indx<-dat.tmp$dose.index==0
+      dose.index.vec<-dat.tmp$dose.index
+      for (dose.indx in dose.index.vec) {
+        treated.indx<-dat.tmp$dose.index==dose.indx
+        if (pct.scaling) { # scaling to percent (0.01 -> 1)
+          pct.scale <- c(1e2,1e4)
+        } else {
+          pct.scale <- c(1,1)
+        }
+        # Log ratio of mean difference, multiplied by 100 (variance multiplied by 10,000)
+        if (measure == "MD" ) { # Mean difference, with optional scaling by control value
+          if (md.scaling) { 
+            md.scale <- c(dat.tmp$response[control.indx],dat.tmp$response[control.indx]^2)
+          } else {
+            md.scale <- c(1,1)
+          }
+          dat.tmp[treated.indx,c("yi","vi")]<-
+            escalc(measure="MD",m2i=dat.tmp$response[control.indx],m1i=dat.tmp$response[treated.indx],
+                   sd2i=dat.tmp$stdev[control.indx],sd1i=dat.tmp$stdev[treated.indx],
+                   n2i=dat.tmp$N[control.indx],n1i=dat.tmp$N[treated.indx])/md.scale*pct.scale
+        }
+        else { # default is ROM
+          dat.tmp[treated.indx,c("yi","vi")]<-
+            escalc(measure="ROM",m2i=dat.tmp$response[control.indx],m1i=dat.tmp$response[treated.indx],
+                   sd2i=dat.tmp$stdev[control.indx],sd1i=dat.tmp$stdev[treated.indx],
+                   n2i=dat.tmp$N[control.indx],n1i=dat.tmp$N[treated.indx])*pct.scale
+        } 
+      }
+      # Do not include controls
+      if (include.controls) {
+        dat.contin.trans<-rbind(dat.contin.trans,dat.tmp)
+      } else {
+        dat.contin.trans<-rbind(dat.contin.trans,dat.tmp[!control.indx,])
+      }
+    }
+  }    
+  # return data frame
+  dat.contin.trans
+}
+
+```
+
+```{r more_functions, echo=FALSE}
+##### forestfunction
+
+doforest <- function(dat.forest,effectlab="",main="",...) {
+  dosepos<-max(dat.forest$yi+3*sqrt(dat.forest$vi),na.rm=TRUE)
+  dat.forest.rma<- rma(yi,vi=vi,slab=slab,data=dat.forest)
+  print(summary(dat.forest.rma))
+  forest(dat.forest.rma,xlab=effectlab
+         ,order=order(dat.forest$brom,
+                      dat.forest$dose,dat.forest$study.name),ilab=cbind(dat.forest$dose),
+         ilab.xpos=dosepos,...)
+  text(dat.forest.rma$ci.ub,-1,pos=4,paste("(I2=",round(dat.forest.rma$I2,1),"%)",sep=""),
+       ...)
+  mtext("Study and animal group",side=3,line=-1,adj=0,...)
+  mtext("Estimate [95% CI]",side=3,line=-1,adj=1,...)
+  mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,...)
+  mtext(main,side=3,cex=1)
+  dat.forest.rma
+}
+
+
+doforestdose <- function(dat.forest,effectlab="",main="",...) {
+  dosepos<-max(dat.forest$yi+3*sqrt(dat.forest$vi),na.rm=TRUE)
+  dat.forest.rma.dose<- rma(yi,vi=vi,slab=slab,data=dat.forest,mods = ~log10(dose))
+  print(summary(dat.forest.rma.dose))
+  forest(dat.forest.rma.dose,xlab=effectlab
+         ,order=order(dat.forest$dose,dat.forest$study.name),ilab=cbind(dat.forest$dose),
+         ilab.xpos=dosepos,...)
+  text(dat.forest.rma.dose$ci.ub[2],-1,pos=4,paste(
+    "(R2=",round(dat.forest.rma.dose$R2,1),"%, ",
+    "I2=",round(dat.forest.rma.dose$I2,1),"%)",sep=""),
+    ...)
+  #        addpoly(dat.forest.rma.dose$b[1,1],sei=dat.forest.rma.dose$se[1],
+  #                mlab=paste("Intercept (",effectlab," at 1 mg/kg-d)",sep=""),cex=cex,row=-1
+  #                ,...
+  #                )
+  addpoly(dat.forest.rma.dose$b[2,1],sei=dat.forest.rma.dose$se[2],
+          mlab=paste("Slope (",effectlab,"\n per log10 change in exposure)",sep=""),row=-1
+          ,...
+  )
+  mtext("Study and animal group",side=3,line=-1,adj=0,...)
+  mtext("Estimate [95% CI]",side=3,line=-1,adj=1,...)
+  mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,...)
+  mtext(main,side=3,cex=1)
+  dat.forest.rma.dose
+}
+
+##### forest dose linear no intercept default
+
+doforestdose1 <- function(dat.forest,intercept=FALSE,scale=1,
+                          effectlab="",main="",...) {
+  dosepos<-max(dat.forest$yi+3*sqrt(dat.forest$vi),na.rm=TRUE)
+  dat.forest$dose10 <- dat.forest$dose/10
+  if (!intercept) {
+    dat.forest.rma.dose<- rma(yi,vi=vi,slab=slab,data=dat.forest,mods = ~dose10-1)
+  } else {
+    dat.forest.rma.dose<- rma(yi,vi=vi,slab=slab,data=dat.forest,mods = ~dose10)
+  }
+  print(summary(dat.forest.rma.dose))
+  forest(dat.forest.rma.dose,xlab=effectlab
+         ,order=order(dat.forest$dose,dat.forest$study.name),ilab=cbind(dat.forest$dose),
+         ilab.xpos=dosepos,...)
+  text(dat.forest.rma.dose$ci.ub[1],-1,pos=4,paste(
+    "(I2=",round(dat.forest.rma.dose$I2,1),"%)",sep=""),
+    ...)
+  if (intercept) {
+    addpoly(dat.forest.rma.dose$b[1,1],sei=dat.forest.rma.dose$se[1],
+            mlab=paste("Intercept",sep=""),row=-1
+            ,...
+    )
+    roffset<-1
+  } else {
+    roffset<-0
+  }
+  addpoly(scale*dat.forest.rma.dose$b[roffset+1,1],sei=scale*dat.forest.rma.dose$se[roffset+1],
+          mlab=paste("Linear (",effectlab," per\n ",scale," mg/kg-d)",sep=""),row=-1-roffset
+          ,...
+  )
+  mtext("Study and animal group",side=3,line=-1,adj=0,...)
+  mtext("Estimate [95% CI]",side=3,line=-1,adj=1,...)
+  mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,...)
+  mtext(main,side=3,cex=1)
+  dat.forest.rma.dose
+}
+
+##### forest dose quadratic no intercept default
+
+doforestdose2 <- function(dat.forest,intercept=FALSE,scale=1,
+                          effectlab="",main="",...) {
+  dosepos<-max(dat.forest$yi+3*sqrt(dat.forest$vi),na.rm=TRUE)
+  dat.forest$dose10 <- dat.forest$dose/10
+  if (!intercept) {
+    dat.forest.rma.dose<- rma(yi,vi=vi,slab=slab,data=dat.forest,mods = ~dose10+I(dose10^2)-1)
+  } else {
+    dat.forest.rma.dose<- rma(yi,vi=vi,slab=slab,data=dat.forest,mods = ~dose10+I(dose10^2))
+  }
+  print(summary(dat.forest.rma.dose))
+  forest(dat.forest.rma.dose,xlab=effectlab
+         ,order=order(dat.forest$dose,dat.forest$study.name),ilab=cbind(dat.forest$dose),
+         ilab.xpos=dosepos,...)
+  if (is.null(dat.forest.rma.dose$R2)) {
+    text(dat.forest.rma.dose$ci.ub[2],-1,pos=4,paste(
+      "(I2=",round(dat.forest.rma.dose$I2,1),"%)",sep=""),
+      ...)
+  } else {
+    text(dat.forest.rma.dose$ci.ub[2],-1,pos=4,paste(
+      "(R2=",round(dat.forest.rma.dose$R2,1),"%, ",
+      "I2=",round(dat.forest.rma.dose$I2,1),"%)",sep=""),
+      ...)
+  }
+  if (intercept) {
+    addpoly(dat.forest.rma.dose$b[1,1],sei=dat.forest.rma.dose$se[1],
+            mlab=paste("Intercept",sep=""),row=-1
+            ,...
+    )
+    roffset<-1
+  } else {
+    roffset<-0
+  }
+  addpoly(scale*dat.forest.rma.dose$b[roffset+1,1],sei=scale*dat.forest.rma.dose$se[roffset+1],
+          mlab=paste("Linear (",effectlab," per ",scale," mg/kg-d)",sep=""),row=-1-roffset
+          ,...
+  )
+  if (dat.forest.rma.dose$se[roffset+2] !=0) {
+    addpoly(scale^2*dat.forest.rma.dose$b[roffset+2,1],sei=scale^2*dat.forest.rma.dose$se[roffset+2],
+            mlab=paste("Quadratic (",effectlab,"\n per [",scale," mg/kg-d]^2)",sep=""),row=-2-roffset
+            ,...
+    )
+  }
+  mtext("Study and animal group",side=3,line=-1,adj=0,...)
+  mtext("Estimate [95% CI]",side=3,line=-1,adj=1,...)
+  mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,...)
+  mtext(main,side=3,cex=1)
+  dat.forest.rma.dose
+}
+
+
+##### doseresponsefunction
+
+dodoseplot <- function(dat.forest,effectlab="",ylim=c(-100,100),logxlim=NA,main="") {
+  if (is.na(logxlim[1])) {
+    x1 <- floor(log10(range(dat.forest$dose)))
+  } else {
+    x1 <- logxlim
+  }
+  xlim<-10^(x1+c(0,1))
+  
+  errbar(dat.forest$dose,dat.forest$yi,dat.forest$yi+sqrt(dat.forest$vi)*qnorm(0.95),
+         dat.forest$yi+sqrt(dat.forest$vi)*qnorm(0.05),
+         xlab=paste("Dose mg/kg-d"),xlim=xlim,
+         ylab=effectlab,axes=FALSE,log="x",ylim=ylim)
+  abline(0,0,col="grey")
+  box()
+  axis(2)
+  x2 <- seq(x1[1], x1[2]+1)
+  ticksat <- as.vector(sapply(x2, function(p) (1:10)*10^p))
+  axis(1, 10^x2)
+  axis(1, ticksat, labels=NA, tcl=-0.25, lwd=0, lwd.ticks=1)
+  mtext(main,side=3)
+  print("")
+}
+
+
+adddosepredict <- function(dat.now,dat.now.rma.dose,col.ci="red",col.cr="blue",lwd=2,lty.m=1,lty.ci=2,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- 10^seq(from=xr[1],to=xr[2],length.out=1000)
+  yypred<-predict(dat.now.rma.dose,newmods=log10(xx))
+  lines(xx,yypred$pred,lty=lty.m,col=col.ci,lwd=lwd,...)
+  lines(xx,yypred$ci.lb,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(xx,yypred$ci.ub,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(xx,yypred$cr.lb,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+  lines(xx,yypred$cr.ub,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+}
+
+adddose2predict <- function(dat.now,dat.now.rma.dose,col.ci="red",col.cr="blue",lwd=2,lty.m=1,lty.ci=2,
+                            dosescale=1,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- (10^seq(from=xr[1],to=xr[2],length.out=1000))/dosescale
+  yypred<-predict(dat.now.rma.dose,newmods=cbind(xx,xx^2))
+  lines(dosescale*xx,yypred$pred,lty=lty.m,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$ci.lb,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$ci.ub,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$cr.lb,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+  lines(dosescale*xx,yypred$cr.ub,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+}
+
+## Linear model
+adddose1predict <- function(dat.now,dat.now.rma.dose,col.ci="red",col.cr="blue",lwd=2,lty.m=1,lty.ci=2,
+                            dosescale=1,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- (10^seq(from=xr[1],to=xr[2],length.out=1000))/dosescale
+  yypred<-predict(dat.now.rma.dose,newmods=xx)
+  lines(dosescale*xx,yypred$pred,lty=lty.m,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$ci.lb,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$ci.ub,lty=lty.ci,col=col.ci,lwd=lwd,...)
+  lines(dosescale*xx,yypred$cr.lb,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+  lines(dosescale*xx,yypred$cr.ub,lty=lty.ci,col=col.cr,lwd=lwd+1,...)
+}
+
+addbmd <- function(dat.now,dat.now.rma.dose,bmr=100*log(1.05),col="grey",line=-1,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- seq(from=xr[2],to=xr[1],length.out=1000) # go down from higher dose
+  yypred<-predict(dat.now.rma.dose,newmods=xx)
+  if (bmr>0) {
+    bmd<-data.frame(m=10^approx(yypred$pred,xx,bmr)$y,
+                    ci.lb=10^approx(yypred$ci.ub,xx,bmr)$y,
+                    ci.ub=10^approx(yypred$ci.lb,xx,bmr)$y
+    )
+  } else {
+    bmd<-data.frame(m=10^approx(yypred$pred,xx,bmr)$y,
+                    ci.lb=10^approx(yypred$ci.lb,xx,bmr)$y,
+                    ci.ub=10^approx(yypred$ci.ub,xx,bmr)$y
+    )
+  }
+  #  points(bmd$m,bmr,pch=15,col=col)
+  #  lines(c(bmd$ci.lb,bmd$ci.ub),rep(bmr,2),lwd=3,col=col,...)
+  lines(c(1e-30,bmd$ci.lb,bmd$m,bmd$ci.ub),rep(bmr,4),lty=2,col="grey")
+  lines(rep(bmd$ci.lb,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$ci.ub,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$m,2),c(bmr,-1e6),col="grey")
+  mtext(paste("BMD(",signif(bmr,2),")=",signif(bmd$m,3),"[",signif(bmd$ci.lb,3),", ",
+              signif(bmd$ci.ub,3),"]",sep=""),side=1,line=line,cex=0.8,
+        at=bmd$m)
+  bmd$bmr <- bmr
+  bmd
+}
+
+addbmd2 <- function(dat.now,dat.now.rma.dose,bmr=100*log(1.05),col="grey",line=-1,dosescale=1,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- 10^seq(from=xr[1],to=xr[2],length.out=1000)/dosescale # go up from lower dose
+  yypred<-predict(dat.now.rma.dose,newmods=cbind(xx,xx^2))
+  if (bmr>0) {
+    bmd<-data.frame(m=10^approx(yypred$pred,log10(xx),bmr)$y,
+                    ci.lb=10^approx(yypred$ci.ub,log10(xx),bmr)$y,
+                    ci.ub=10^approx(yypred$ci.lb,log10(xx),bmr)$y
+    )
+  } else {
+    bmd<-data.frame(m=10^approx(yypred$pred,log10(xx),bmr)$y,
+                    ci.lb=10^approx(yypred$ci.lb,log10(xx),bmr)$y,
+                    ci.ub=10^approx(yypred$ci.ub,log10(xx),bmr)$y
+    )
+  }
+  bmd<-bmd*dosescale
+  #  points(bmd$m,bmr,pch=15,col=col)
+  #  lines(c(bmd$ci.lb,bmd$ci.ub),rep(bmr,2),lwd=3,col=col,...)
+  lines(c(1e-30,bmd$ci.lb,bmd$m,bmd$ci.ub),rep(bmr,4),lty=2,col="grey")
+  lines(rep(bmd$ci.lb,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$ci.ub,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$m,2),c(bmr,-1e6),col="grey")
+  mtext(paste("BMD(",signif(bmr,2),")=",signif(bmd$m,3),"[",signif(bmd$ci.lb,3),", ",
+              signif(bmd$ci.ub,3),"]",sep=""),side=1,line=line,cex=0.8,
+        at=bmd$m)
+  bmd$bmr <- bmr
+  bmd
+}
+
+addbmd1 <- function(dat.now,dat.now.rma.dose,bmr=100*log(1.05),col="grey",line=-1,dosescale=1,...) {
+  xr <- log10(range(dat.now$dose))
+  xr[1]<-min(xr,0)
+  xx <- 10^seq(from=xr[1],to=xr[2],length.out=1000)/dosescale # go up from lower dose
+  yypred<-predict(dat.now.rma.dose,newmods=xx)
+  if (bmr>0) {
+    bmd<-data.frame(m=10^approx(yypred$pred,log10(xx),bmr)$y,
+                    ci.lb=10^approx(yypred$ci.ub,log10(xx),bmr)$y,
+                    ci.ub=10^approx(yypred$ci.lb,log10(xx),bmr)$y
+    )
+  } else {
+    bmd<-data.frame(m=10^approx(yypred$pred,log10(xx),bmr)$y,
+                    ci.lb=10^approx(yypred$ci.lb,log10(xx),bmr)$y,
+                    ci.ub=10^approx(yypred$ci.ub,log10(xx),bmr)$y
+    )
+  }
+  bmd<-bmd*dosescale
+  #  points(bmd$m,bmr,pch=15,col=col)
+  #  lines(c(bmd$ci.lb,bmd$ci.ub),rep(bmr,2),lwd=3,col=col,...)
+  lines(c(1e-30,bmd$ci.lb,bmd$m,bmd$ci.ub),rep(bmr,4),lty=2,col="grey")
+  lines(rep(bmd$ci.lb,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$ci.ub,2),c(bmr,-1e6),lty=2,col="grey")
+  lines(rep(bmd$m,2),c(bmr,-1e6),col="grey")
+  mtext(paste("BMD(",signif(bmr,2),")=",signif(bmd$m,3),"[",signif(bmd$ci.lb,3),", ",
+              signif(bmd$ci.ub,3),"]",sep=""),side=1,line=line,cex=0.8,
+        at=bmd$m)
+  bmd$bmr <- bmr
+  bmd
+}
+
+
+
+getresults.sum <- function(dat.rma,b.lab="",bindx=1) {
+	z<- data.frame(effect=effectlab,b.lab=b.lab,
+						b.parm=row.names(dat.rma$b)[bindx],
+						b=dat.rma$b[bindx], 
+						ci.lb=dat.rma$ci.lb[bindx], ci.ub=dat.rma$ci.ub[bindx], pval=dat.rma$pval[bindx],
+						tau=sqrt(dat.rma$tau2),I2=dat.rma$I2,QEp=dat.rma$QEp,
+						AICc=dat.rma$fit.stats["AICc","REML"])
+	z
+}
+
+getbmd.results.sum <- function(dat.bmd,b.lab="") {
+	z<- data.frame(effect=effectlab,b.lab=b.lab,
+					bmr=dat.bmd$bmr,bmd=dat.bmd$m,ci.lb=dat.bmd$ci.lb,ci.ub=dat.bmd$ci.ub)
+	z
+}
+
+
+```
+
+## Morris Latency last trial animal details
+
+Only included studies that had standard deviation data extracted.  Effect measure is log ratio of mean between treated and control, times 100 (which for small values is close to the % change).  Random effects models were fit for overall effect, linear in log10(dose), linear in dose, and linear-quadratic in dose.  Sensitivity analysis included leaving one study out at a time and using only the highest dose from each study.
+
+The results show a statistically significant overall effect of PBDE treatment that is also robust to leaving out individual studies, using only the highest dose group in each study, and leaving out individual studies using the highest dose group only.  There was also low or no heterogeneity (<25%, not statistically significant in primary analysis and all sensitivity analyses).  Use of a linear model in log10(dose), a linear model in dose, or a linear-quadratic model did not reduce heterogeneity, and in some cases increased it.  Thus, there is no evidence of a dose-response gradient.
+
+```{r calc_effect_sizes, fig.width=6.5, fig.height = 8, echo=FALSE, dpi=300}
+##### calc_effect_sizes
+
+Morris.dat <- read.delim("PBDE_Morris_latency_last_or_avail_trial_inclall.dat",sep="\t",header=TRUE,as.is=TRUE)
+Morris.dat.incl <- subset(Morris.dat,!Exclude & !is.na(response))
+#Morris.dat.incl$stdev[is.na(Morris.dat.incl$stdev)] <- 1000
+Morris.dat.trans<- get_contin_es(Morris.dat.incl)
+# plot(Morris.dat.trans$yi,Morris.dat.trans$percent.control.mean,pch=15,xlab="log Ratio of mean (x100)",ylab="HAWC % difference")
+
+Morris.dat.trans$brom <- as.numeric(t(as.data.frame(strsplit(Morris.dat.trans$chemical," "))[2,]))
+Morris.dat.trans$brom[as.vector((as.data.frame(strsplit(Morris.dat.trans$chemical,
+                                                        " "))[1,])=="DE")]<-0
+dat.order<-Morris.dat.trans[order(Morris.dat.trans$brom,Morris.dat.trans$dose),]
+dat.order$vi[is.na(dat.order$vi)]<-0
+dat.order$col<-"black"
+dat.order$col[dat.order$vi==0]<-"royalblue3"
+dat.order$slab <- paste(dat.order$study.name,"\n  ",dat.order$chemical,dat.order$animal.group.name)
+dosepos<-max(dat.order$yi+3*sqrt(dat.order$vi),na.rm=TRUE)
+
+pdf("Fig5.pdf",height=8,width=6.5)
+forest(x=dat.order$yi,vi=dat.order$vi,slab=dat.order$slab,col=dat.order$col,
+       xlab="Latency last trial log(Ratio of mean)x100",main="PBDE All Studies and Doses",
+       ilab=cbind(dat.order$dose), ilab.xpos=dosepos,
+       cex=0.5,psize=2)
+abline(h=(1:(length(dat.order$brom)-1))[rev(diff(dat.order$brom))!=0]+0.55,lty=2)
+mtext("Study, congener, and animal group",side=3,line=-1,adj=0,cex=0.7)
+mtext("Estimate [95% CI]",side=3,line=-1,adj=1,cex=0.7)
+mtext("Dose (mg/kg-d)",side=3,line=-1,at=dosepos,cex=0.7)
+dev.off()
+```
+
+
+```{r Morris Latency last trial animal, fig.width=6.5, fig.height = 8, echo=FALSE, dpi=300}
+##### Morris Latency_animal_forest_dose
+
+results.sum <- data.frame()
+bmd.results.sum<-data.frame()
+
+dat<-Morris.dat.trans
+effectlab<-"Latency last trial log(Ratio of mean)x100"
+dat$slab <- paste(dat$study.name,"\n  ",dat$chemical,dat$animal.group.name)
+      # All doses for each study
+      dat.now <- dat
+      studylist <- unique(dat.now$study.name)
+      nstudy<-length(studylist)
+            # Intercept only
+        print("Overall Effect---------------------")
+        
+pdf("Fig6.pdf",height=8,width=6.5)
+        dat.now.rma <- doforest(dat.now,effectlab=effectlab,
+                                main=paste("PBDE All Doses"),cex=0.7)
+        dat.order<-dat.now[order(dat.now$brom,
+                      dat.now$dose,dat.now$study.name),]
+        dat.order.nona<-dat.order[!is.na(dat.order$vi),]
+        abline(h=(1:(length(dat.order.nona$brom)-1))[rev(diff(dat.order.nona$brom))!=0]+0.5,lty=2)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma,b.lab="Overall",bindx=1))
+        dev.off()
+        #        print(dat.now.rma.l1o<-leave1out(dat.now.rma))
+        # Leave one out
+        print("Leave one out---------------------")
+        studylist <- unique(dat.now$study.name)
+        nstudy<-length(studylist)
+        dat.loo.rma.list<-list()
+        if (nstudy>2) { 
+          for (n in 1:nstudy) {
+            study.now<-studylist[n]
+            dat.loo <- subset(dat.now,study.name != study.now)
+            print(dat.loo.rma.list[[n]]<-rma(yi,vi=vi,slab=slab,data=dat.loo))
+			results.sum <- rbind(results.sum,getresults.sum(dat.loo.rma.list[[n]],
+				b.lab=paste("Overall minus",study.now),bindx=1))
+            #print(predict(dat.loo.rma.list[[n]]))
+            # forest(dat.loo$yi.back,ci.lb=dat.loo$ci.lb.back,ci.ub=dat.loo$ci.ub.back,slab=dat.loo$slab,
+            #                             xlab=effectlab,xlim=c(xmin,xmax),at=xtx,
+            #                             ilab=cbind(dat.loo$dose),
+            #                             ilab.xpos=dosepos,cex=cex.lab,
+            #                             rows=rnums,ylim=c(-1,ymax),
+            #                             digits=2
+            # )
+          }
+        }
+        # Intercept and log10(dose) - test for trend
+        print("Linear in log10(dose)---------------------")
+        dat.now.rma.dose <- doforestdose(dat.now,ylim=c(-1.5,dim(dat.now)[1]+3),
+                                         effectlab=effectlab,
+                                         main=paste("PBDE All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose,b.lab="Trend in log10(dose)",bindx=2))
+        # Linear - no intercept - for estimating BMD
+        print("Linear in dose---------------------")
+        dat.now.rma.dose1 <- doforestdose1(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste("PBDE All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose1,b.lab="Linear in dose10",bindx=1))
+        # Quadratic - no intercept - for estimating BMD
+        print("Linear or LinearQuadratic in dose---------------------")
+        dat.now.rma.dose2 <- doforestdose2(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste("PBDE All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="LinearQuadratic in dose10",bindx=1))
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="LinearQuadratic in dose10",bindx=2))
+        par(mfrow=c(3,1))
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddosepredict(dat.now,dat.now.rma.dose)
+        mtext("Log-linear model",side=3,line=-1,cex=0.8)
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddose1predict(dat.now,dat.now.rma.dose1,dosescale=10)
+        print(dat.now.bmd1<-addbmd1(dat.now,dat.now.rma.dose1,dosescale=10))
+		bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd1,b.lab="Linear in dose10"))
+        mtext("Linear model",side=3,line=-1,cex=0.8)
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddose2predict(dat.now,dat.now.rma.dose2,dosescale=10)
+        print(dat.now.bmd2<-addbmd2(dat.now,dat.now.rma.dose2,dosescale=10))
+		bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd2,b.lab="LinearQuadratic in dose10"))
+        mtext("Linear-quadratic model",side=3,line=-1,cex=0.8)
+        par(mfrow=c(1,1))
+        # dev.off()
+
+        
+      # highest dose for each study
+      print(paste(effectlab,"Highest Dose"))
+      dat.now <- subset(dat,high_dose==dose)
+        # Intercept only
+        # pdf(file=paste(phthalate.now,"HighestDose",species.now,"AGD.V5.pdf",sep="."),height=8,width=6.5)
+        print("Highest Dose Overall Effect---------------------")
+        dat.now.rma <- doforest(dat.now,effectlab=effectlab,
+                                main=paste("PBDE Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma,b.lab="Highest Doses-Overall",bindx=1))
+		
+		 # Leave one out
+        print("Highest Dose Leave one out---------------------")
+        studylist <- unique(dat.now$study.name)
+        nstudy<-length(studylist)
+        dat.loo.rma.list<-list()
+        if (nstudy>2) { 
+          for (n in 1:nstudy) {
+            study.now<-studylist[n]
+            dat.loo <- subset(dat.now,study.name != study.now)
+            print(dat.loo.rma.list[[n]]<-rma(yi,vi=vi,slab=slab,data=dat.loo))
+			results.sum <- rbind(results.sum,getresults.sum(dat.loo.rma.list[[n]],
+				b.lab=paste("Overall minus",study.now),bindx=1))
+            #print(predict(dat.loo.rma.list[[n]]))
+            # forest(dat.loo$yi.back,ci.lb=dat.loo$ci.lb.back,ci.ub=dat.loo$ci.ub.back,slab=dat.loo$slab,
+            #                             xlab=effectlab,xlim=c(xmin,xmax),at=xtx,
+            #                             ilab=cbind(dat.loo$dose),
+            #                             ilab.xpos=dosepos,cex=cex.lab,
+            #                             rows=rnums,ylim=c(-1,ymax),
+            #                             digits=2
+            # )
+          }
+        }
+        #        print(dat.now.rma.l1o<-leave1out(dat.now.rma))
+        # Linear - no intercept - for estimating BMD
+        print("Highest Dose Linear or LinearQuadratic in dose---------------------")
+        dat.now.rma.dose1 <- doforestdose1(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste("PBDE Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose1,b.lab="Highest Doses-Linear in dose10",bindx=1))
+        # Intercept and log10(dose) - test for trend
+          print("Highest Dose Linear in log10(dose)---------------------")
+          dat.now.rma.dose <- doforestdose(dat.now,ylim=c(-1.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste("PBDE Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose,b.lab="Highest Doses-Trend in log10(dose)",bindx=2))
+          # Quadratic - no intercept - for estimating BMD
+          print("Highest Dose LinearQuadratic in dose---------------------")
+          dat.now.rma.dose2 <- doforestdose2(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                             effectlab=effectlab,
+                                             main=paste("PBDE Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="Highest Doses-LinearQuadratic in dose10",bindx=1))
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="Highest Doses-LinearQuadratic in dose10",bindx=2))
+          par(mfrow=c(3,1))
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddosepredict(dat.now,dat.now.rma.dose)
+          mtext("Log-linear model",side=3,line=-1,cex=0.8)
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddose1predict(dat.now,dat.now.rma.dose1,dosescale=10)
+          print(dat.now.bmd1<-addbmd1(dat.now,dat.now.rma.dose1,dosescale=10))
+			bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd1,b.lab="Highest Doses-Linear in dose10"))
+          mtext("Linear model",side=3,line=-1,cex=0.8)
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddose2predict(dat.now,dat.now.rma.dose2,dosescale=10)
+          print(dat.now.bmd2<-addbmd2(dat.now,dat.now.rma.dose2,dosescale=10))
+			bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd2,b.lab="Highest Doses-LinearQuadratic in dose10"))
+          mtext("Linear-quadratic model",side=3,line=-1,cex=0.8)
+          par(mfrow=c(1,1))
+          # dev.off()
+```
+
+
+```{r write results}
+
+write.csv(results.sum,file="PBDE.meta-results-v2.csv")
+write.csv(bmd.results.sum,file="PBDE.meta-bmd-results-v2.csv")
+
+```
+
+
+```{r Morris Latency last trial animal by chemical, fig.width=6.5, fig.height = 8, echo=FALSE, dpi=300}
+##### Morris Latency_animal_forest_dose
+
+
+dat<-Morris.dat.trans
+for (chem.now in unique(dat$chemical)) {
+results.sum <- data.frame()
+bmd.results.sum<-data.frame()
+  
+effectlab<-"Latency last trial log(Ratio of mean)x100"
+dat$slab <- paste(dat$study.name,"\n  ",dat$chemical,dat$animal.group.name)
+      # All doses for each study
+      dat.now <- subset(dat,chemical==chem.now & !is.na(stdev) & !is.na(response))
+      studylist <- unique(dat.now$study.name)
+      nstudy<-length(studylist)
+      if (dim(dat.now)[1]>1) {
+            # Intercept only
+        print("Overall Effect---------------------")
+        dat.now.rma <- doforest(dat.now,effectlab=effectlab,
+                                main=paste(chem.now,"All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma,b.lab="Overall",bindx=1))
+        #        print(dat.now.rma.l1o<-leave1out(dat.now.rma))
+        # Leave one out
+        print("Leave one out---------------------")
+        studylist <- unique(dat.now$study.name)
+        nstudy<-length(studylist)
+        dat.loo.rma.list<-list()
+        if (nstudy>2) { 
+          for (n in 1:nstudy) {
+            study.now<-studylist[n]
+            dat.loo <- subset(dat.now,study.name != study.now)
+            print(dat.loo.rma.list[[n]]<-rma(yi,vi=vi,slab=slab,data=dat.loo))
+			results.sum <- rbind(results.sum,getresults.sum(dat.loo.rma.list[[n]],
+				b.lab=paste("Overall minus",study.now),bindx=1))
+            #print(predict(dat.loo.rma.list[[n]]))
+            # forest(dat.loo$yi.back,ci.lb=dat.loo$ci.lb.back,ci.ub=dat.loo$ci.ub.back,slab=dat.loo$slab,
+            #                             xlab=effectlab,xlim=c(xmin,xmax),at=xtx,
+            #                             ilab=cbind(dat.loo$dose),
+            #                             ilab.xpos=dosepos,cex=cex.lab,
+            #                             rows=rnums,ylim=c(-1,ymax),
+            #                             digits=2
+            # )
+          }
+        }
+        # Intercept and log10(dose) - test for trend
+        print("Linear in log10(dose)---------------------")
+        dat.now.rma.dose <- doforestdose(dat.now,ylim=c(-1.5,dim(dat.now)[1]+3),
+                                         effectlab=effectlab,
+                                         main=paste(chem.now,"All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose,b.lab="Trend in log10(dose)",bindx=2))
+        # Linear - no intercept - for estimating BMD
+        print("Linear in dose---------------------")
+        dat.now.rma.dose1 <- doforestdose1(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste(chem.now,"All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose1,b.lab="Linear in dose10",bindx=1))
+        # Quadratic - no intercept - for estimating BMD
+        print("Linear or LinearQuadratic in dose---------------------")
+        dat.now.rma.dose2 <- doforestdose2(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste(chem.now,"All Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="LinearQuadratic in dose10",bindx=1))
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="LinearQuadratic in dose10",bindx=2))
+        par(mfrow=c(3,1))
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddosepredict(dat.now,dat.now.rma.dose)
+        mtext("Log-linear model",side=3,line=-1,cex=0.8)
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddose1predict(dat.now,dat.now.rma.dose1,dosescale=10)
+        print(dat.now.bmd1<-addbmd1(dat.now,dat.now.rma.dose1,dosescale=10))
+		bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd1,b.lab="Linear in dose10"))
+        mtext("Linear model",side=3,line=-1,cex=0.8)
+        dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+        adddose2predict(dat.now,dat.now.rma.dose2,dosescale=10)
+        print(dat.now.bmd2<-addbmd2(dat.now,dat.now.rma.dose2,dosescale=10))
+		bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd2,b.lab="LinearQuadratic in dose10"))
+        mtext("Linear-quadratic model",side=3,line=-1,cex=0.8)
+        par(mfrow=c(1,1))
+        # dev.off()
+
+        
+      # highest dose for each study
+      print(paste(effectlab,"Highest Dose"))
+      dat.now <- subset(dat.now,high_dose==dose)
+      if (dim(dat.now)[1]>1) {
+        # Intercept only
+        # pdf(file=paste(phthalate.now,"HighestDose",species.now,"AGD.V5.pdf",sep="."),height=8,width=6.5)
+        print("Highest Dose Overall Effect---------------------")
+        dat.now.rma <- doforest(dat.now,effectlab=effectlab,
+                                main=paste(chem.now,"Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma,b.lab="Highest Doses-Overall",bindx=1))
+		
+		 # Leave one out
+        print("Highest Dose Leave one out---------------------")
+        studylist <- unique(dat.now$study.name)
+        nstudy<-length(studylist)
+        dat.loo.rma.list<-list()
+        if (nstudy>2) { 
+          for (n in 1:nstudy) {
+            study.now<-studylist[n]
+            dat.loo <- subset(dat.now,study.name != study.now)
+            print(dat.loo.rma.list[[n]]<-rma(yi,vi=vi,slab=slab,data=dat.loo))
+			results.sum <- rbind(results.sum,getresults.sum(dat.loo.rma.list[[n]],
+				b.lab=paste("Overall minus",study.now),bindx=1))
+            #print(predict(dat.loo.rma.list[[n]]))
+            # forest(dat.loo$yi.back,ci.lb=dat.loo$ci.lb.back,ci.ub=dat.loo$ci.ub.back,slab=dat.loo$slab,
+            #                             xlab=effectlab,xlim=c(xmin,xmax),at=xtx,
+            #                             ilab=cbind(dat.loo$dose),
+            #                             ilab.xpos=dosepos,cex=cex.lab,
+            #                             rows=rnums,ylim=c(-1,ymax),
+            #                             digits=2
+            # )
+          }
+        }
+        #        print(dat.now.rma.l1o<-leave1out(dat.now.rma))
+        # Linear - no intercept - for estimating BMD
+        print("Highest Dose Linear or LinearQuadratic in dose---------------------")
+        dat.now.rma.dose1 <- doforestdose1(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste(chem.now,"Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose1,b.lab="Highest Doses-Linear in dose10",bindx=1))
+			bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd1,b.lab="Highest Doses-Linear in dose10"))
+          mtext("Linear model",side=3,line=-1,cex=0.8)
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddose2predict(dat.now,dat.now.rma.dose2,dosescale=10)
+          print(dat.now.bmd2<-addbmd2(dat.now,dat.now.rma.dose2,dosescale=10))
+		    if (dim(dat.now[1])>2) {
+        # Intercept and log10(dose) - test for trend
+          print("Highest Dose Linear in log10(dose)---------------------")
+          dat.now.rma.dose <- doforestdose(dat.now,ylim=c(-1.5,dim(dat.now)[1]+3),
+                                           effectlab=effectlab,
+                                           main=paste(chem.now,"Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose,b.lab="Highest Doses-Trend in log10(dose)",bindx=2))
+          # Quadratic - no intercept - for estimating BMD
+          print("Highest Dose LinearQuadratic in dose---------------------")
+          dat.now.rma.dose2 <- doforestdose2(dat.now,ylim=c(-2.5,dim(dat.now)[1]+3),
+                                             effectlab=effectlab,
+                                             main=paste(chem.now,"Highest Doses"),cex=0.7)
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="Highest Doses-LinearQuadratic in dose10",bindx=1))
+		results.sum <- rbind(results.sum,getresults.sum(dat.now.rma.dose2,b.lab="Highest Doses-LinearQuadratic in dose10",bindx=2))
+          par(mfrow=c(3,1))
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddosepredict(dat.now,dat.now.rma.dose)
+          mtext("Log-linear model",side=3,line=-1,cex=0.8)
+          dodoseplot(dat.now,effectlab=effectlab,logxlim=c(-2,1))
+          adddose1predict(dat.now,dat.now.rma.dose1,dosescale=10)
+          print(dat.now.bmd1<-addbmd1(dat.now,dat.now.rma.dose1,dosescale=10))
+			bmd.results.sum <- rbind(bmd.results.sum,getbmd.results.sum(dat.now.bmd2,b.lab="Highest Doses-LinearQuadratic in dose10"))
+          mtext("Linear-quadratic model",side=3,line=-1,cex=0.8)
+          par(mfrow=c(1,1))
+          # dev.off()
+		    }
+      }
+write.csv(results.sum,file=paste(chem.now,"PBDE.meta-results-v2.csv",sep="."))
+write.csv(bmd.results.sum,file=paste(chem.now,"PBDE.meta-bmd-results-v2.csv",sep="."))
+      }
+}
+```

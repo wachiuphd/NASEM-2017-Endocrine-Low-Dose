@@ -1,0 +1,5 @@
+"","effect","b.lab","bmr","bmd","ci.lb","ci.ub"
+"1","Latency last trial log(Ratio of mean)x100","Linear in dose10",4.87901641694321,5.0789986556555,3.16338289338196,12.8761562499822
+"2","Latency last trial log(Ratio of mean)x100","LinearQuadratic in dose10",4.87901641694321,1.78919816161541,1.10864126168605,4.48939788184432
+"3","Latency last trial log(Ratio of mean)x100","Highest Doses-Linear in dose10",4.87901641694321,4.87486152615192,2.44523169344484,NA
+"4","Latency last trial log(Ratio of mean)x100","Highest Doses-LinearQuadratic in dose10",4.87901641694321,1.02275035801893,0.616243167450727,2.96512748681541
