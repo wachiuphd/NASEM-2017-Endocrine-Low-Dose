@@ -1,5 +1,5 @@
 ---
-title: "PhthalateAGDHuman-noDEHP.FinalDraft"
+title: "PhthalateAGDHuman-noDEHP.Final"
 author: "Weihsueh Chiu"
 date: "February 10, 2017"
 output:
@@ -34,7 +34,7 @@ as the outcome measure.  Note that using exclusively AGD (as) as the outcome mea
 is the same as excluding the Swan (2008) study.
 
 ```{r}
-dat <- read.delim("Phthalate_AGD_human_FinalDraft.txt",sep="\t",header=TRUE,as.is=TRUE)
+dat <- read.delim("Phthalate_AGD_human_Final.txt",sep="\t",header=TRUE,as.is=TRUE)
 dat$estimate.pct <- 100 * dat$estimate / dat$outcome.mean # Divide by mean AGD
 dat$lower.CI.pct <- 100 * dat$lower.CI / dat$outcome.mean # Divide by mean AGD
 dat$upper.CI.pct <- 100 * dat$upper.CI / dat$outcome.mean # Divide by mean AGD
@@ -145,7 +145,7 @@ meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD 
 rownames(meta.table)<-NULL
 mtext("Author[s] and year",side=3,line=-2,adj=0,cex=0.8)
 mtext("Beta for % Change [95% CI]",side=3,line=-2,adj=1,cex=0.8)
-write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.Final.csv",sep="."))
 ```
 
 ## DBP Meta-analysis
@@ -250,7 +250,7 @@ meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD 
                        I2=dat.tmp.rma$I2)
 )
 rownames(meta.table)<-NULL
-write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.Final.csv",sep="."))
 ```
 
 
@@ -356,7 +356,7 @@ meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD 
                        I2=dat.tmp.rma$I2)
 )
 rownames(meta.table)<-NULL
-write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.Final.csv",sep="."))
 ```
 
 ## DiBP Meta-analysis
@@ -461,7 +461,7 @@ meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD 
                        I2=dat.tmp.rma$I2)
 )
 rownames(meta.table)<-NULL
-write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.Final.csv",sep="."))
 ```
 
 ## DiNP Meta-analysis
@@ -569,7 +569,7 @@ meta.table<-rbind(meta.table,data.frame(alternate=paste(phthalate.now,"Only AGD 
                        I2=dat.tmp.rma$I2)
 )
 rownames(meta.table)<-NULL
-write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.FinalDraft.csv",sep="."))
+write.csv(meta.table,file=paste(phthalate.now,"AGD.epi.results.Final.csv",sep="."))
 ```
 
 

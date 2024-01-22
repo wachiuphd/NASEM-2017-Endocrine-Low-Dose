@@ -1,5 +1,5 @@
 ---
-title: "DEHP.AGD.epa.Final.Rmd"
+title: "DEHP.AGD.epi.Final.Rmd"
 author: "Weihsueh Chiu"
 date: "February 10, 2017"
 output:
@@ -378,7 +378,7 @@ meta.alt.table<-rbind(meta.alt.table,data.frame(alternate="Only AGD (ap) and MEH
                        I2=dat.tmp.rma$I2)
 )
 rownames(meta.alt.table)<-NULL
-write.csv(rbind(meta.table,meta.alt.table),file="DEHP.AGD.epi.results.FinalDraft.csv")
+write.csv(rbind(meta.table,meta.alt.table),file="DEHP.AGD.epi.results.Final.csv")
 
 ```
 
